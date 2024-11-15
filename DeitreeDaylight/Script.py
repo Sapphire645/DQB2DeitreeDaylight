@@ -2,6 +2,7 @@ import zlib
 import struct
 from datetime import datetime
 from os import makedirs
+#import time
 
 #Loading Screen Variables
 RunningTask = False
@@ -117,14 +118,30 @@ def process(binary_file_path,blocks,liquid,restore,deitree):
                         itemOffsets[i+1] = itemOffsets[i+1] & 0xF0
 
     #Blocks.
+    start_time = time.time()
     for i in range(0,0x30000*590,2):
         if i % (0x30000) == 0:
             BlockReading += 1
         CHANGE = False
         blockID = blocksArray[i] + (blocksArray[i+1]&0x07)*256
-        if blockID == 0:
-            continue
-        if blocks and blockID in blockSwap:
+        if blockID < 28 or blockID == 130 or blockID == 131 or blockID == 146 or blockID == 209 or blockID == 241 or blockID == 341:
+            continue #Will need to be tinkered. It's for optimization.
+        elif blockID > 600:
+            if liquid and blockID > 1201:
+                tempIDLiquid = blockID%89
+                if tempIDLiquid >= 56 and tempIDLiquid <= 66:
+                    blockID = blockID-55
+                    blockID = bytearray(struct.pack('<H', blockID))
+                    blocksArray[i] = blockID[0]
+                    blocksArray[i+1] = blockID[1] | (blocksArray[i+1]&0xF8)
+                elif tempIDLiquid >= 45 and tempIDLiquid <= 55:
+                    blockID = blockID-33
+                    blockID = bytearray(struct.pack('<H', blockID))
+                    blocksArray[i] = blockID[0]
+                    blocksArray[i+1] = blockID[1] | (blocksArray[i+1]&0xF8)
+            else:
+                continue
+        elif blocks and blockID in blockSwap:
             blockID = blockSwap[blockID]
             blockID = bytearray(struct.pack('<H', blockID))
             blocksArray[i] = blockID[0]
@@ -146,18 +163,8 @@ def process(binary_file_path,blocks,liquid,restore,deitree):
                     blockID = bytearray(struct.pack('<H', blockID))
                     blocksArray[i] = blockID[0]
                     blocksArray[i+1] = blockID[1] | (blocksArray[i+1]&0xF8)
-                elif blockID > 1201:
-                    tempIDLiquid = blockID%89
-                    if tempIDLiquid >= 56 and tempIDLiquid <= 66:
-                        blockID = blockID-55
-                        blockID = bytearray(struct.pack('<H', blockID))
-                        blocksArray[i] = blockID[0]
-                        blocksArray[i+1] = blockID[1] | (blocksArray[i+1]&0xF8)
-                    elif tempIDLiquid >= 45 and tempIDLiquid <= 55:
-                        blockID = blockID-33
-                        blockID = bytearray(struct.pack('<H', blockID))
-                        blocksArray[i] = blockID[0]
-                        blocksArray[i+1] = blockID[1] | (blocksArray[i+1]&0xF8)
+                    
+    #print(time.time()-start_time)
     if restore:
         for IDi in restorationMixed:
             for i in restorationBlockListBlocks[IDi]:
@@ -173,3 +180,4 @@ def process(binary_file_path,blocks,liquid,restore,deitree):
         fin.write(binary_data_raw[:0x110])
         fin.write(binary_data_edit)
     RunningTask = False
+
